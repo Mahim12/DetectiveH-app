@@ -1,0 +1,59 @@
+name: iOS Build Check
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Capacitor Sync
+        run: npx cap sync ios
+
+      - name: Build and Package IPA Manually
+        run: |
+          WORKSPACE_PATH=$(find ios -name "*.xcworkspace" | head -n 1)
+          
+          # 1. Build the .app
+          xcodebuild -workspace "$WORKSPACE_PATH" \
+                     -scheme App \
+                     -configuration Debug \
+                     -destination "generic/platform=iOS" \
+                     -derivedDataPath build_output \
+                     CODE_SIGNING_ALLOWED=NO \
+                     build
+
+          # 2. Package into Payload
+          mkdir -p Payload
+          APP_PATH=$(find build_output -name "*.app" | head -n 1)
+          cp -R "$APP_PATH" Payload/
+          
+          # 3. Zip to .ipa
+          zip -r detective-h-playcanvas.ipa Payload
+          
+          # 4. Move to output
+          mkdir -p output
+          mv detective-h-playcanvas.ipa output/
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: detective-h-playcanvas
+          path: output/detective-h-playcanvas.ipa
