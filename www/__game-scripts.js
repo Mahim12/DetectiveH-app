@@ -32,48 +32,40 @@ Movement.attributes.add("speed", {
 Movement.prototype.initialize = function () {
   this.force = new pc.Vec3();
   this.spawnPos = this.entity.getPosition().clone();
+
+  // Global flags for touch
+  this.isTouching = false;
+  this.touchX = 0;
+  this.touchY = 0;
+
+  // Listen to the window directly - more reliable in Capacitor
+  window.addEventListener("mousedown", (e) => {
+    this.isTouching = true;
+    this.updateCoords(e);
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (this.isTouching) this.updateCoords(e);
+  });
+  window.addEventListener("mouseup", () => {
+    this.isTouching = false;
+  });
+
+  window.addEventListener("touchstart", (e) => {
+    this.isTouching = true;
+    this.updateCoords(e.touches[0]);
+  });
+  window.addEventListener("touchmove", (e) => {
+    this.updateCoords(e.touches[0]);
+  });
+  window.addEventListener("touchend", () => {
+    this.isTouching = false;
+  });
 };
 
-// Movement.prototype.update = function (e) {
-//   if (this.entity.getPosition().y < -1) return this.teleport(this.spawnPos);
-
-//   const kb = this.app.keyboard;
-//   let s = 0;
-//   let i = 0;
-
-//   // Keyboard controls
-//   if (kb.isPressed(pc.KEY_LEFT) || kb.isPressed(pc.KEY_A)) s = -this.speed;
-//   if (kb.isPressed(pc.KEY_RIGHT) || kb.isPressed(pc.KEY_D)) s += this.speed;
-//   if (kb.isPressed(pc.KEY_UP) || kb.isPressed(pc.KEY_W)) i = -this.speed;
-//   if (kb.isPressed(pc.KEY_DOWN) || kb.isPressed(pc.KEY_S)) i += this.speed;
-
-//   // Touch controls
-//   const touches = this.app.touch ? this.app.touch.touches : [];
-//   if (touches.length > 0) {
-//     const touch = touches[0];
-//     const w = window.innerWidth;
-//     const h = window.innerHeight;
-//     if (touch.x < w * 0.3) s = -this.speed;
-//     else if (touch.x > w * 0.7) s = this.speed;
-//     if (touch.y < h * 0.3) i = -this.speed;
-//     else if (touch.y > h * 0.7) i = this.speed;
-//   }
-
-//   this.force.set(s, 0, i);
-
-//   if (this.force.lengthSq() > 0) {
-//     this.force.normalize().scale(this.speed);
-//     // Rotate force to align with the camera angle
-//     const angle = 0.25 * -Math.PI;
-//     const cos = Math.cos(angle);
-//     const sin = Math.sin(angle);
-//     const rotatedX = this.force.x * cos - this.force.z * sin;
-//     const rotatedZ = this.force.z * cos + this.force.x * sin;
-//     this.force.set(rotatedX, 0, rotatedZ);
-
-//     this.entity.rigidbody.applyImpulse(this.force);
-//   }
-// };
+Movement.prototype.updateCoords = function (data) {
+  this.touchX = data.clientX || data.x;
+  this.touchY = data.clientY || data.y;
+};
 
 Movement.prototype.update = function (e) {
   if (this.entity.getPosition().y < -1) return this.teleport(this.spawnPos);
@@ -82,7 +74,7 @@ Movement.prototype.update = function (e) {
   let s = 0;
   let i = 0;
 
-  // Keyboard controls
+  // 1. Keyboard Fallback
   if (kb && kb.isPressed) {
     if (kb.isPressed(pc.KEY_LEFT) || kb.isPressed(pc.KEY_A)) s = -this.speed;
     if (kb.isPressed(pc.KEY_RIGHT) || kb.isPressed(pc.KEY_D)) s += this.speed;
@@ -90,18 +82,19 @@ Movement.prototype.update = function (e) {
     if (kb.isPressed(pc.KEY_DOWN) || kb.isPressed(pc.KEY_S)) i += this.speed;
   }
 
-  // Touch controls - Super Defensive Check
-  const touchDevice = this.app.touch;
-  if (touchDevice && touchDevice.touches && touchDevice.touches.length > 0) {
-    const touch = touchDevice.touches[0];
+  // 2. Global Touch/Mouse
+  if (this.isTouching) {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    if (touch.x < w * 0.3) s = -this.speed;
-    else if (touch.x > w * 0.7) s = this.speed;
+    if (this.touchX < w * 0.4) s = -this.speed;
+    else if (this.touchX > w * 0.6) s = this.speed;
 
-    if (touch.y < h * 0.3) i = -this.speed;
-    else if (touch.y > h * 0.7) i = this.speed;
+    if (this.touchY < h * 0.4) i = -this.speed;
+    else if (this.touchY > h * 0.6) i = this.speed;
+
+    // If touching middle, force move forward
+    if (s === 0 && i === 0) i = -this.speed;
   }
 
   this.force.set(s, 0, i);
