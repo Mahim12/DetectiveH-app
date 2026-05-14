@@ -34,6 +34,47 @@ Movement.prototype.initialize = function () {
   this.spawnPos = this.entity.getPosition().clone();
 };
 
+// Movement.prototype.update = function (e) {
+//   if (this.entity.getPosition().y < -1) return this.teleport(this.spawnPos);
+
+//   const kb = this.app.keyboard;
+//   let s = 0;
+//   let i = 0;
+
+//   // Keyboard controls
+//   if (kb.isPressed(pc.KEY_LEFT) || kb.isPressed(pc.KEY_A)) s = -this.speed;
+//   if (kb.isPressed(pc.KEY_RIGHT) || kb.isPressed(pc.KEY_D)) s += this.speed;
+//   if (kb.isPressed(pc.KEY_UP) || kb.isPressed(pc.KEY_W)) i = -this.speed;
+//   if (kb.isPressed(pc.KEY_DOWN) || kb.isPressed(pc.KEY_S)) i += this.speed;
+
+//   // Touch controls
+//   const touches = this.app.touch ? this.app.touch.touches : [];
+//   if (touches.length > 0) {
+//     const touch = touches[0];
+//     const w = window.innerWidth;
+//     const h = window.innerHeight;
+//     if (touch.x < w * 0.3) s = -this.speed;
+//     else if (touch.x > w * 0.7) s = this.speed;
+//     if (touch.y < h * 0.3) i = -this.speed;
+//     else if (touch.y > h * 0.7) i = this.speed;
+//   }
+
+//   this.force.set(s, 0, i);
+
+//   if (this.force.lengthSq() > 0) {
+//     this.force.normalize().scale(this.speed);
+//     // Rotate force to align with the camera angle
+//     const angle = 0.25 * -Math.PI;
+//     const cos = Math.cos(angle);
+//     const sin = Math.sin(angle);
+//     const rotatedX = this.force.x * cos - this.force.z * sin;
+//     const rotatedZ = this.force.z * cos + this.force.x * sin;
+//     this.force.set(rotatedX, 0, rotatedZ);
+
+//     this.entity.rigidbody.applyImpulse(this.force);
+//   }
+// };
+
 Movement.prototype.update = function (e) {
   if (this.entity.getPosition().y < -1) return this.teleport(this.spawnPos);
 
@@ -42,19 +83,23 @@ Movement.prototype.update = function (e) {
   let i = 0;
 
   // Keyboard controls
-  if (kb.isPressed(pc.KEY_LEFT) || kb.isPressed(pc.KEY_A)) s = -this.speed;
-  if (kb.isPressed(pc.KEY_RIGHT) || kb.isPressed(pc.KEY_D)) s += this.speed;
-  if (kb.isPressed(pc.KEY_UP) || kb.isPressed(pc.KEY_W)) i = -this.speed;
-  if (kb.isPressed(pc.KEY_DOWN) || kb.isPressed(pc.KEY_S)) i += this.speed;
+  if (kb && kb.isPressed) {
+    if (kb.isPressed(pc.KEY_LEFT) || kb.isPressed(pc.KEY_A)) s = -this.speed;
+    if (kb.isPressed(pc.KEY_RIGHT) || kb.isPressed(pc.KEY_D)) s += this.speed;
+    if (kb.isPressed(pc.KEY_UP) || kb.isPressed(pc.KEY_W)) i = -this.speed;
+    if (kb.isPressed(pc.KEY_DOWN) || kb.isPressed(pc.KEY_S)) i += this.speed;
+  }
 
-  // Touch controls
-  const touches = this.app.touch ? this.app.touch.touches : [];
-  if (touches.length > 0) {
-    const touch = touches[0];
+  // Touch controls - Super Defensive Check
+  const touchDevice = this.app.touch;
+  if (touchDevice && touchDevice.touches && touchDevice.touches.length > 0) {
+    const touch = touchDevice.touches[0];
     const w = window.innerWidth;
     const h = window.innerHeight;
+
     if (touch.x < w * 0.3) s = -this.speed;
     else if (touch.x > w * 0.7) s = this.speed;
+
     if (touch.y < h * 0.3) i = -this.speed;
     else if (touch.y > h * 0.7) i = this.speed;
   }
@@ -63,7 +108,6 @@ Movement.prototype.update = function (e) {
 
   if (this.force.lengthSq() > 0) {
     this.force.normalize().scale(this.speed);
-    // Rotate force to align with the camera angle
     const angle = 0.25 * -Math.PI;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
@@ -71,7 +115,9 @@ Movement.prototype.update = function (e) {
     const rotatedZ = this.force.z * cos + this.force.x * sin;
     this.force.set(rotatedX, 0, rotatedZ);
 
-    this.entity.rigidbody.applyImpulse(this.force);
+    if (this.entity.rigidbody) {
+      this.entity.rigidbody.applyImpulse(this.force);
+    }
   }
 };
 
